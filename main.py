@@ -134,7 +134,7 @@ class DiscordClient(Client):
     
     async def on_guild_channel_create(self, channel: GuildChannel):
         if channel.category != self.category or type(channel) != VoiceChannel: return
-        await a_sleep(1)
+        await a_sleep(5)
         # 新增至資料庫
         dbo.new_channel(self.table_name, channel.id)
         # 檢查是否由機器人創建
