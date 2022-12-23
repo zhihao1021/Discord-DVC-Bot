@@ -176,4 +176,7 @@ class DiscordClient(Client):
 
 if __name__ == "__main__":
     client = DiscordClient()
-    client.run()
+    try:
+        client.run()
+    except KeyboardInterrupt:
+        exit()
