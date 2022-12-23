@@ -1,2 +1,5 @@
 from .threading_ import *
-from .json import *
+try:
+    from .json import *
+except:
+    from .o_json import *

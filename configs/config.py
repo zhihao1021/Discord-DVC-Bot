@@ -29,7 +29,8 @@ class LoggingConfig:
 CONFIG = {
     "discord": {
         "token": "",
-        "channel_id": 0
+        "channel_id": 0,
+        "prefixs": ["$"]
     },
     "logging": {
         "main": {
@@ -67,6 +68,7 @@ except Exception as e:
 
 DISCORD_TOKEN: str = CONFIG["discord"]["token"]
 DISCORD_CHANNEL: int = CONFIG["discord"]["channel_id"]
+DISCORD_PREFIXS: list[str] = CONFIG["discord"]["prefixs"]
 
 LOGGING_CONFIG: dict[str, LoggingConfig] = {
     "main": LoggingConfig(CONFIG["logging"]["main"]),
