@@ -1,10 +1,13 @@
 from configs import DISCORD_CHANNEL, DISCORD_LOGGER as LOG, DISCORD_TOKEN
 from configs.config import DISCORD_PREFIXS
 import db_operation as dbo
+from commands import *
 
+from asyncio import sleep as a_sleep
 from typing import Optional
 
 from discord import CategoryChannel, Intents, Member, Message, PermissionOverwrite, VoiceChannel, VoiceState
+from discord.abc import GuildChannel
 from discord.client import Client
 
 from modules.json import Json
@@ -17,8 +20,45 @@ class DiscordClient(Client):
         intents = Intents.all()
         super().__init__(*args, **kwargs, intents=intents)
     
+    async def _add_admin(self, channel: VoiceChannel, member: Member):
+        guild = member.guild         # 群組
+        table_name = self.table_name # 資料庫表格名稱
+
+        # 開啟權限: 管理頻道、將他人靜音、將他人拒聽、管理訊息
+        permission = channel.overwrites_for(member)
+        permission.manage_channels = True
+        permission.mute_members = True
+        permission.deafen_members = True
+        permission.manage_messages = True
+
+        # 更新權限
+        await channel.set_permissions(member, overwrite=permission)
+
+        # 更新資料庫
+        dbo.add_admin(table_name, channel.id, member.id)
+
+        LOG.info(f"Add user<{guild.id}/{member.id}> to channel<{channel.id}> admin.")
+    
+    async def _remove_admin(self, channel: VoiceChannel, member: Member):
+        guild = member.guild         # 群組
+        table_name = self.table_name # 資料庫表格名稱
+
+        # 重設權限: 管理頻道、將他人靜音、將他人拒聽、管理訊息
+        permission = channel.overwrites_for(member)
+        permission.manage_channels = None
+        permission.mute_members = None
+        permission.deafen_members = None
+        permission.manage_messages = None
+
+        # 更新權限
+        await channel.set_permissions(member, overwrite=permission)
+
+        # 更新資料庫
+        dbo.remove_admin(table_name, channel.id, member.id)
+
+        LOG.info(f"Remove user<{guild.id}/{member.id}> admin from channel<{channel.id}>.")
+    
     async def on_ready(self):
-        LOG.warning(f"Discord Bot `{self.user}` Start.")
         # 取得起始頻道
         self.initial_channel: VoiceChannel = self.get_channel(DISCORD_CHANNEL)
         # 起始頻道所屬之類別
@@ -26,17 +66,19 @@ class DiscordClient(Client):
         if self.category == None:
             self.category = await self.initial_channel.guild.create_category("DVC Category")
             await self.initial_channel.edit(category=self.category)
+        # 資料庫表格名稱
+        self.table_name = dbo.database_init(self.initial_channel.guild.id)
+        LOG.warning(f"Discord Bot `{self.user}` Start.")
     
     async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
-        name = member.display_name # 使用者名稱
-        guild = member.guild       # 群組
-        l_channel = before.channel # 離該的頻道
-        j_channel = after.channel  # 加入的頻道
-
-        table_name = dbo.database_init(member.guild.id) # 資料庫表格名稱
+        name = member.display_name   # 使用者名稱
+        guild = member.guild         # 群組
+        l_channel = before.channel   # 離該的頻道
+        j_channel = after.channel    # 加入的頻道
+        table_name = self.table_name # 資料庫表格名稱
 
         if l_channel != None:
-            l_in_category = j_channel.category == self.category
+            l_in_category = l_channel.category == self.category
             if j_channel != None:
                 j_in_category = j_channel.category == self.category
                 LOG.info(f"User<{guild.id}/{member.id}> <{l_channel.id}> -> <{j_channel.id}>.")
@@ -61,14 +103,14 @@ class DiscordClient(Client):
 
             # 新增資料至資料庫
             dbo.new_channel(table_name, new_channel.id)
-            dbo.add_admin(table_name, new_channel.id, member.id)
+            await self._add_admin(new_channel, member)
             return
         
         # 檢查使用者是否為該頻道最後一位離開的管理員
         if j_in_category:
             if dbo.can_claim(table_name, j_channel.id) and member.id == dbo.last_admin(table_name, j_channel.id):
                 # 如果是，則恢復其管理員權限
-                dbo.add_admin(table_name, j_channel.id, member.id)
+                await self._add_admin(j_channel, member)
                 await j_channel.send(f"本頻道原管理員`{member.display_name}`已加回頻道，因此恢復其管理員身分。")
                 LOG.info(f"Channel<{guild.id}/{j_channel.id}>`{j_channel.name}` admin return.")
         
@@ -78,14 +120,11 @@ class DiscordClient(Client):
                 # 如果沒有人，則刪除頻道
                 await l_channel.delete()
                 LOG.info(f"Delete channel<{guild.id}/{l_channel.id}>`{l_channel.name}`.")
-
-                # 自資料庫移除資料
-                dbo.delete_channel(table_name, l_channel.id)
             else:
                 # 記錄在離開前，頻道內其他人是否可以請求成為管理員
                 before_claim = dbo.can_claim(table_name, l_channel.id)
                 # 如果離開者是管理員，則將其自管理員清單移除
-                dbo.remove_admin(table_name, l_channel.id, member.id)
+                await self._remove_admin(l_channel, member)
                 # 檢查請求成為管理員權限是否改變
                 after_claim = dbo.can_claim(table_name, l_channel.id)
                 if after_claim and after != before_claim:
@@ -93,8 +132,44 @@ class DiscordClient(Client):
                     await l_channel.send(f"由於本頻道原管理員`{member.display_name}`已離開頻道，因此開放其他人請求成為新管理員。\n請使用`{gen_command_template('claim')}`以請求成為新管理員。")
                     LOG.info(f"Channel<{guild.id}/{l_channel.id}>`{l_channel.name}` no admin.")
     
+    async def on_guild_channel_create(self, channel: GuildChannel):
+        if channel.category != self.category or type(channel) != VoiceChannel: return
+        await a_sleep(1)
+        # 新增至資料庫
+        dbo.new_channel(self.table_name, channel.id)
+        # 檢查是否由機器人創建
+        if dbo.can_claim(self.table_name, channel.id):
+            # 如果否，則開放請求成為管理員之權限
+            await channel.send(f"由於本頻道無管理員，因此開放其他人請求成為新管理員。\n請使用`{gen_command_template('claim')}`以請求成為新管理員。")
+            LOG.info(f"Channel<{channel.guild.id}/{channel.id}>`{channel.name}` no admin.")
+
+    async def on_guild_channel_delete(self, channel: GuildChannel):
+        if channel.category != self.category or type(channel) != VoiceChannel: return
+        # 自資料庫移除資料
+        dbo.delete_channel(self.table_name, channel.id)
+    
     async def on_message(self, message: Message):
-        if message.author == self.user: return
+        # 檢查是否為無效命令
+        if message.author == self.user: return                 # 由自己發出的訊息
+        elif message.author.bot: return                        # 由機器人發出的訊息
+        elif message.channel.category != self.category: return # 在動態語音類別外的訊息
+        elif message.channel == self.initial_channel: return   # 在起始頻道的訊息
+
+        command = message.content.strip().lower()
+        # 檢查是否為命令
+        if not command.startswith(DISCORD_PREFIXS): return
+        # 移除指令前墜
+        for preifx in DISCORD_PREFIXS:
+            command = command.removeprefix(preifx)
+        # 切分指令
+        _res = command.split(" ")
+        if len(_res) < 2:
+            command, args = _res[0], None
+        else:
+            command, args = _res[0], tuple(_res[1:])
+        # 判斷指令
+        if command == "help":
+            await Help.execute(message, args)
     
     def run(self, *args, **kwargs) -> None:
         return super().run(DISCORD_TOKEN, *args, **kwargs)
