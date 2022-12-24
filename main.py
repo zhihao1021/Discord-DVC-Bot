@@ -41,7 +41,7 @@ class DiscordClient(Bot):
         intents = Intents.all()
         super().__init__(*args, **kwargs, intents=intents)
 
-        self.command_group = self.create_group("dvc", guild_ids=[859361081536151573])
+        self.command_group = self.create_group("dvc", guild_ids=[])
 
         self._dvc_command_init()
     
@@ -173,6 +173,7 @@ class DiscordClient(Bot):
             await self.initial_channel.edit(category=self.category)
         # 資料庫表格名稱
         self.table_name = dbo.database_init(self.initial_channel.guild.id)
+        self.command_group.guild_ids.append(self.initial_channel.guild.id)
 
         LOG.warning(f"Discord Bot `{self.user}` Start.")
     
