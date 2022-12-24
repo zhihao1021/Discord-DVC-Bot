@@ -1,2 +1,2 @@
-orjson
 py-cord
+orjson
