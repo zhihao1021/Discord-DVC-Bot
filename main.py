@@ -243,7 +243,7 @@ class DiscordClient(Bot):
         # 新增至資料庫
         dbo.new_channel(self.table_name, channel.id)
         # 檢查是否由機器人創建
-        await a_sleep(5)
+        await a_sleep(10)
         if dbo.can_claim(self.table_name, channel.id):
             # 如果否，則開放請求成為管理員之權限
             await channel.send(f"由於本頻道無管理員，因此開放其他人請求成為新管理員。\n請使用`{gen_command_template('claim')}`以請求成為新管理員。")
