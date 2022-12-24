@@ -30,6 +30,7 @@ CONFIG = {
     "discord": {
         "token": "",
         "channel_id": 0,
+        "guild_id": 0,
         "prefixs": ["$"]
     },
     "logging": {
@@ -68,6 +69,7 @@ except Exception as e:
 
 DISCORD_TOKEN: str = CONFIG["discord"]["token"]
 DISCORD_CHANNEL: int = CONFIG["discord"]["channel_id"]
+DISCORD_GUILD: int = CONFIG["discord"]["guild_id"]
 DISCORD_PREFIXS: tuple[str] = tuple(CONFIG["discord"]["prefixs"])
 
 LOGGING_CONFIG: dict[str, LoggingConfig] = {

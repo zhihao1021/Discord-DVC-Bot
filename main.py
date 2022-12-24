@@ -1,4 +1,4 @@
-from configs import DISCORD_CHANNEL, DISCORD_LOGGER as LOG, DISCORD_TOKEN
+from configs import DISCORD_CHANNEL, DISCORD_GUILD, DISCORD_LOGGER as LOG, DISCORD_TOKEN
 from configs.config import DISCORD_PREFIXS
 import db_operation as dbo
 from commands import *
@@ -41,7 +41,7 @@ class DiscordClient(Bot):
         intents = Intents.all()
         super().__init__(*args, **kwargs, intents=intents)
 
-        self.command_group = self.create_group("dvc", guild_ids=[])
+        self.command_group = self.create_group("dvc", guild_ids=[DISCORD_GUILD])
 
         self._dvc_command_init()
     
@@ -173,7 +173,6 @@ class DiscordClient(Bot):
             await self.initial_channel.edit(category=self.category)
         # 資料庫表格名稱
         self.table_name = dbo.database_init(self.initial_channel.guild.id)
-        self.command_group.guild_ids.append(self.initial_channel.guild.id)
 
         LOG.warning(f"Discord Bot `{self.user}` Start.")
     
