@@ -2,7 +2,7 @@ from sqlite3 import connect
 
 def database_init(guild_id: int) -> str:
     """
-    檢查檢查該群組之表格是否存在，若不存在則創建一個新表格。
+    檢查該群組之表格是否存在，若不存在則創建一個新表格。
 
     guild_id: :class:`int`
         群組ID。

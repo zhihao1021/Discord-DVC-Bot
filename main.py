@@ -175,6 +175,26 @@ class DiscordClient(Client):
             await Name.execute(table_name, message, args)
         elif command == "limit":
             await Limit.execute(table_name, message, args)
+        elif command == "limit":
+            await BitRate.execute(table_name, message, args)
+        elif command == "hide":
+            await Hide.execute(table_name, message, args)
+        elif command == "unhide":
+            await UnHide.execute(table_name, message, args)
+        elif command == "lock":
+            await Lock.execute(table_name, message, args)
+        elif command == "unlock":
+            await UnLock.execute(table_name, message, args)
+        elif command == "kick":
+            await Kick.execute(table_name, message, args)
+        elif command == "ban":
+            await Ban.execute(table_name, message, args)
+        elif command == "unban":
+            await UnBan.execute(table_name, message, args)
+        elif command == "mute":
+            await Mute.execute(table_name, message, args)
+        elif command == "unmute":
+            await UnMute.execute(table_name, message, args)
     
     def run(self, *args, **kwargs) -> None:
         return super().run(DISCORD_TOKEN, *args, **kwargs)
