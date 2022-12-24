@@ -207,7 +207,8 @@ class Help(BaseCommand):
     
     @staticmethod
     async def execute(tabel_nam: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
-        if args[0] == "name":
+        if args == None: return await Help.help(raw_message)
+        elif args[0] == "name":
             return await Name.help(raw_message)
         elif args[0] == "limit":
             return await Limit.help(raw_message)
