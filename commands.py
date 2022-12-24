@@ -158,16 +158,16 @@ def _success_embed_generator(author: Member, message: str) -> Embed:
 
 class BaseCommand:
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         raise NotImplementedError
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         raise NotImplementedError
 
 class Help(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         author = raw_message.author # 訊息發送者
         embed = Embed(
             color=0xffc800,
@@ -203,36 +203,36 @@ class Help(BaseCommand):
             name=author.display_name,
             icon_url=author.display_avatar.url
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(tabel_nam: str, raw_message: Message, args: Optional[tuple]=None):
-        if args == None or len(args) < 1:
-            await Help.help(raw_message)
-        elif args[0] == "name":
-            await Name.help(raw_message)
+    async def execute(tabel_nam: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
+        if args[0] == "name":
+            return await Name.help(raw_message)
         elif args[0] == "limit":
-            await Limit.help(raw_message)
+            return await Limit.help(raw_message)
         elif args[0] == "bitrate":
-            await BitRate.help(raw_message)
+            return await BitRate.help(raw_message)
         elif args[0] == "hide":
-            await Hide.help(raw_message)
+            return await Hide.help(raw_message)
         elif args[0] == "unhide":
-            await UnHide.help(raw_message)
+            return await UnHide.help(raw_message)
         elif args[0] == "lock":
-            await Lock.help(raw_message)
+            return await Lock.help(raw_message)
         elif args[0] == "unlock":
-            await UnLock.help(raw_message)
+            return await UnLock.help(raw_message)
         elif args[0] == "kick":
-            await Kick.help(raw_message)
+            return await Kick.help(raw_message)
         elif args[0] == "ban":
-            await Ban.help(raw_message)
+            return await Ban.help(raw_message)
         elif args[0] == "unban":
-            await UnBan.help(raw_message)
+            return await UnBan.help(raw_message)
+        else:
+            return await Help.help(raw_message)
 
 class Name(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -256,35 +256,33 @@ class Name(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
 
         # 檢查是否有參數傳入
         if args == None or len(args) < 1:
-            await raw_message.reply(embed=_format_error_embed_generator(author, "name"))
-            return
+            return {"embed": _format_error_embed_generator(author, "name")}
 
         # 執行指令
         origin_name = channel.name
         new_name = " ".join(args)
         await channel.edit(name=new_name)
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Edit channel<{channel.guild.id}/{channel.id}> name from `{origin_name}` to `{channel.name}`.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"修改成功，已將頻道名稱由`{origin_name}`改為`{channel.name}`。"
-        ))
-        LOG.info(f"Edit channel<{channel.guild.id}/{channel.id}> name from `{origin_name}` to `{channel.name}`.")
+        )}
 
 class Limit(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -308,21 +306,19 @@ class Limit(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 檢查是否有參數傳入
         if args == None or len(args) < 1:
-            await raw_message.reply(embed=_format_error_embed_generator(author, "limit"))
-            return
+            return {"embed": _format_error_embed_generator(author, "limit")}
         else:
             # 如果有，則檢查是否可以轉為有效參數
             # 檢查是否可轉型為整數
@@ -334,23 +330,22 @@ class Limit(BaseCommand):
                 except: pass
             # 檢查是否為有效參數
             if result == None:
-                await raw_message.reply(embed=_format_error_embed_generator(author, "limit"))
-                return
+                return {"embed": _format_error_embed_generator(author, "limit")}
             # 如果是，則進行修飾
             result = abs(int(result))
         
         # 則執行指令
         origin_limit = channel.user_limit
         await channel.edit(user_limit=result)
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Edit channel<{channel.guild.id}/{channel.id}> limit from `{origin_limit}`to `{channel.user_limit}`.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"修改成功，已將頻道人數限制由`{origin_limit}`人改為`{channel.user_limit}`人。"
-        ))
-        LOG.info(f"Edit channel<{channel.guild.id}/{channel.id}> limit from `{origin_limit}`to `{channel.user_limit}`.")
+        )}
 
 class BitRate(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -374,21 +369,19 @@ class BitRate(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 檢查是否有參數傳入
         if args == None or len(args) < 1:
-            await raw_message.reply(_format_error_embed_generator(author, "bitrate"))
-            return
+            return {"embed": _format_error_embed_generator(author, "bitrate")}
         else:
             # 如果有，則檢查是否可以轉為有效參數
             # 檢查是否可轉型為整數
@@ -400,8 +393,7 @@ class BitRate(BaseCommand):
                 except: pass
             # 檢查是否為有效參數
             if result == None:
-                await raw_message.reply(_format_error_embed_generator(author, "bitrate"))
-                return
+                return {"embed": _format_error_embed_generator(author, "bitrate")}
             # 如果是，則進行修飾
             result = max(int(result), 8)
             result = min(96, result)
@@ -409,15 +401,15 @@ class BitRate(BaseCommand):
         # 則執行指令
         origin_bitrate = channel.bitrate
         await channel.edit(bitrate=result)
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Edit channel<{channel.guild.id}/{channel.id}> bitrate from `{origin_bitrate}kbps`to `{channel.bitrate}kbps`.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"修改成功，已將頻道位元率由`{origin_bitrate}kbps`改為`{channel.bitrate}kbps`。"
-        ))
-        LOG.info(f"Edit channel<{channel.guild.id}/{channel.id}> bitrate from `{origin_bitrate}kbps`to `{channel.bitrate}kbps`.")
+        )}
 
 class Hide(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -438,29 +430,28 @@ class Hide(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 則執行指令
         everyone_role = channel.guild.default_role
         await channel.set_permissions(everyone_role, view_channel=False)
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Hide channel<{channel.guild.id}/{channel.id}>.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"修改成功，已將頻道隱藏。"
-        ))
-        LOG.info(f"Hide channel<{channel.guild.id}/{channel.id}>.")
+        )}
 
 class UnHide(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -481,29 +472,28 @@ class UnHide(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 則執行指令
         everyone_role = channel.guild.default_role
         await channel.set_permissions(everyone_role, view_channel=None)
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Unhide channel<{channel.guild.id}/{channel.id}>.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"修改成功，已將頻道取消隱藏。"
-        ))
-        LOG.info(f"Unhide channel<{channel.guild.id}/{channel.id}>.")
+        )}
 
 class Lock(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -524,29 +514,28 @@ class Lock(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 則執行指令
         everyone_role = channel.guild.default_role
         await channel.set_permissions(everyone_role, connect=False)
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Lock channel<{channel.guild.id}/{channel.id}>.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"修改成功，已將頻道上鎖。"
-        ))
-        LOG.info(f"Lock channel<{channel.guild.id}/{channel.id}>.")
+        )}
 
 class UnLock(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -567,29 +556,28 @@ class UnLock(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 則執行指令
         everyone_role = channel.guild.default_role
         await channel.set_permissions(everyone_role, connect=None)
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Unlock channel<{channel.guild.id}/{channel.id}>.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"修改成功，已將頻道解鎖。"
-        ))
-        LOG.info(f"Unlock channel<{channel.guild.id}/{channel.id}>.")
+        )}
 
 class Kick(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -612,32 +600,32 @@ class Kick(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 則執行指令
-        members = raw_message.mentions
+        if hasattr(raw_message, "mentions"): members = raw_message.mentions
+        else: members = args
         for member in members:
             await member.move_to(None)
         members_name = [f"`{member.display_name}`" for member in members]
         members_log = [f"user<{member.id}>" for member in members]
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Kick {','.join(members_log)} from channel<{channel.guild.id}/{channel.id}>.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"執行成功，已將{'、'.join(members_name)}自頻道踢出。"
-        ))
-        LOG.info(f"Kick {','.join(members_log)} from channel<{channel.guild.id}/{channel.id}>.")
+        )}
 
 class Ban(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -660,19 +648,19 @@ class Ban(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 則執行指令
-        members = raw_message.mentions
+        if hasattr(raw_message, "mentions"): members = raw_message.mentions
+        else: members = args
         for member in members:
             if member == author:
                 await raw_message.reply("你無法驅逐你自己。")
@@ -687,15 +675,15 @@ class Ban(BaseCommand):
             )
         members_name = [f"`{member.display_name}`" for member in members]
         members_log = [f"user<{member.id}>" for member in members]
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Ban {','.join(members_log)} from channel<{channel.guild.id}/{channel.id}>.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"執行成功，已將{'、'.join(members_name)}自頻道驅逐。"
-        ))
-        LOG.info(f"Ban {','.join(members_log)} from channel<{channel.guild.id}/{channel.id}>.")
+        )}
 
 class UnBan(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -718,19 +706,19 @@ class UnBan(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 則執行指令
-        members = raw_message.mentions
+        if hasattr(raw_message, "mentions"): members = raw_message.mentions
+        else: members = args
         for member in members:
             await channel.set_permissions(member,
                 read_message_history=None,
@@ -740,15 +728,15 @@ class UnBan(BaseCommand):
             )
         members_name = [f"`{member.display_name}`" for member in members]
         members_log = [f"user<{member.id}>" for member in members]
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Unban {','.join(members_log)} from channel<{channel.guild.id}/{channel.id}>.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"執行成功，已將{'、'.join(members_name)}自頻道解除驅逐。"
-        ))
-        LOG.info(f"Unban {','.join(members_log)} from channel<{channel.guild.id}/{channel.id}>.")
+        )}
 
 class Mute(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -769,29 +757,28 @@ class Mute(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 則執行指令
         everyone_role = channel.guild.default_role
         await channel.set_permissions(everyone_role, speak=False)
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Mute channel<{channel.guild.id}/{channel.id}>.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"修改成功，已將頻道靜音。"
-        ))
-        LOG.info(f"Mute channel<{channel.guild.id}/{channel.id}>.")
+        )}
 
 class UnMute(BaseCommand):
     @staticmethod
-    async def help(raw_message: Message):
+    async def help(raw_message: Message) -> dict:
         # 訊息發送者
         author = raw_message.author
         # 指令說明
@@ -812,24 +799,21 @@ class UnMute(BaseCommand):
             args=args,
             example=example,
         )
-        await raw_message.reply(embed=embed)
+        return {"embed": embed}
     
     @staticmethod
-    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None):
+    async def execute(table_name: str, raw_message: Message, args: Optional[tuple]=None) -> dict:
         channel = raw_message.channel # 頻道
         author = raw_message.author   # 訊息發送者
         # 檢查是否為管理員
         if not _is_admin(table_name, channel, author):
-            await raw_message.reply(embed=_not_admin_embed_generator(author))
-            return
+            return {"embed": _not_admin_embed_generator(author)}
         
         # 則執行指令
         everyone_role = channel.guild.default_role
         await channel.set_permissions(everyone_role, speak=None)
-        await raw_message.reply(embed=_success_embed_generator(
+        LOG.info(f"Unmute channel<{channel.guild.id}/{channel.id}>.")
+        return {"embed": _success_embed_generator(
             author=author,
             message=f"修改成功，已將頻道取消靜音。"
-        ))
-        LOG.info(f"Unmute channel<{channel.guild.id}/{channel.id}>.")
-
-
+        )}

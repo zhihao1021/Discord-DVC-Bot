@@ -6,19 +6,124 @@ from commands import *
 from asyncio import sleep as a_sleep
 from typing import Optional
 
-from discord import CategoryChannel, Intents, Member, Message, PermissionOverwrite, VoiceChannel, VoiceState
+from discord import ApplicationContext, CategoryChannel, Intents, Member, Message, PermissionOverwrite, SlashCommandGroup, VoiceChannel, VoiceState
 from discord.abc import GuildChannel
-from discord.client import Client
-
-from modules.json import Json
+from discord.bot import Bot
 
 def gen_command_template(command: str) -> str:
     return "|".join(map(lambda prefix: f"{prefix}{command}", DISCORD_PREFIXS))
 
-class DiscordClient(Client):
+def _not_dvc_embed_generator(author: Member) -> Embed:
+    """
+    不是動態語音頻道Embed生成器。
+
+    author: :class:`Member`
+        作者。
+
+    return: :class:`Embed`
+        生成之Embed。
+    """
+    embed = Embed(
+        color=0xff0000,
+        title="發生錯誤!",
+        description="你不在動態語音頻道內。",
+        timestamp=datetime.now(TIMEZONE)
+    )
+    # 作者
+    embed.set_author(
+        name=author.display_name,
+        icon_url=author.display_avatar.url
+    )
+    return embed
+
+class DiscordClient(Bot):
     def __init__(self, *args, **kwargs):
         intents = Intents.all()
         super().__init__(*args, **kwargs, intents=intents)
+
+        self.command_group = self.create_group("dvc", guild_ids=[859361081536151573])
+
+        self._dvc_command_init()
+    
+    def _dvc_command_init(self):
+        @self.command_group.command(name="help", description="指令說明")
+        async def s_help(app_context: ApplicationContext, command: str):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await Help.execute(self.table_name, app_context, (command))
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="name", description="改變你的語音頻道名稱")
+        async def s_name(app_context: ApplicationContext, name: str):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await Name.execute(self.table_name, app_context, (name,))
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="limit", description="改變頻道限制人數")
+        async def s_limit(app_context: ApplicationContext, num: str):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await Limit.execute(self.table_name, app_context, (num,))
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="bitrate", description="改變頻道的位元率")
+        async def s_bitrate(app_context: ApplicationContext, num: str):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await BitRate.execute(self.table_name, app_context, (num,))
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="hide", description="將語音頻道隱藏，其他使用者無法看見該頻道")
+        async def s_hide(app_context: ApplicationContext):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await Hide.execute(self.table_name, app_context)
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="unhide", description="將語音頻道設為可見")
+        async def s_unhide(app_context: ApplicationContext):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await UnHide.execute(self.table_name, app_context)
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="lock", description="將頻道上鎖，其他使用者無法加入")
+        async def s_lock(app_context: ApplicationContext):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await Lock.execute(self.table_name, app_context)
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="unlock", description="將頻道解鎖，其他使用者可以加入")
+        async def s_unlock(app_context: ApplicationContext):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await UnLock.execute(self.table_name, app_context)
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="kick", description="踢出語音頻道內的某個使用者")
+        async def s_kick(app_context: ApplicationContext, tags: str):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await Kick.execute(self.table_name, app_context, self._metion_decode(tags))
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="ban", description="驅逐某個使用者")
+        async def s_ban(app_context: ApplicationContext, tags: str):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await Ban.execute(self.table_name, app_context, self._metion_decode(tags))
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="unban", description="解除驅逐某個使用者")
+        async def s_unban(app_context: ApplicationContext, tags: str):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await UnBan.execute(self.table_name, app_context, self._metion_decode(tags))
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="mute", description="禁止所有人說話")
+        async def s_mute(app_context: ApplicationContext):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await Mute.execute(self.table_name, app_context)
+            await app_context.respond(**ret, ephemeral=True)
+        @self.command_group.command(name="unmute", description="允許所有人說話")
+        async def s_unmute(app_context: ApplicationContext):
+            if app_context.channel.category != self.category: ret = {"embed": _not_dvc_embed_generator(app_context.author)}
+            else: ret = await UnMute.execute(self.table_name, app_context)
+            await app_context.respond(**ret, ephemeral=True)
+    
+    def _metion_decode(self, raw_text: str) -> tuple[Member]:
+        result = []
+        format_list = raw_text.split(">")
+        for tag in format_list:
+            if "@" not in tag: continue
+            try:
+                user_id = int(tag.strip("<@!>"))
+                member = self.initial_channel.guild.get_member(user_id)
+                if member == None: continue
+                result.append(member)
+            except: continue
+        return tuple(member)
     
     async def _add_admin(self, channel: VoiceChannel, member: Member):
         guild = member.guild         # 群組
@@ -68,6 +173,7 @@ class DiscordClient(Client):
             await self.initial_channel.edit(category=self.category)
         # 資料庫表格名稱
         self.table_name = dbo.database_init(self.initial_channel.guild.id)
+
         LOG.warning(f"Discord Bot `{self.user}` Start.")
     
     async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
@@ -169,32 +275,34 @@ class DiscordClient(Client):
         else:
             command, args = _res[0], tuple(_res[1:])
         # 判斷指令
+        ret = None
         if command == "help":
-            await Help.execute(table_name, message, args)
-        elif command == "name":
-            await Name.execute(table_name, message, args)
+            ret = await Help.execute(table_name, message, args)
+        if command == "name":
+            ret = await Name.execute(table_name, message, args)
         elif command == "limit":
-            await Limit.execute(table_name, message, args)
+            ret = await Limit.execute(table_name, message, args)
         elif command == "limit":
-            await BitRate.execute(table_name, message, args)
+            ret = await BitRate.execute(table_name, message, args)
         elif command == "hide":
-            await Hide.execute(table_name, message, args)
+            ret = await Hide.execute(table_name, message, args)
         elif command == "unhide":
-            await UnHide.execute(table_name, message, args)
+            ret = await UnHide.execute(table_name, message, args)
         elif command == "lock":
-            await Lock.execute(table_name, message, args)
+            ret = await Lock.execute(table_name, message, args)
         elif command == "unlock":
-            await UnLock.execute(table_name, message, args)
+            ret = await UnLock.execute(table_name, message, args)
         elif command == "kick":
-            await Kick.execute(table_name, message, args)
+            ret = await Kick.execute(table_name, message, args)
         elif command == "ban":
-            await Ban.execute(table_name, message, args)
+            ret = await Ban.execute(table_name, message, args)
         elif command == "unban":
-            await UnBan.execute(table_name, message, args)
+            ret = await UnBan.execute(table_name, message, args)
         elif command == "mute":
-            await Mute.execute(table_name, message, args)
+            ret = await Mute.execute(table_name, message, args)
         elif command == "unmute":
-            await UnMute.execute(table_name, message, args)
+            ret = await UnMute.execute(table_name, message, args)
+        if ret: await message.reply(**ret)
     
     def run(self, *args, **kwargs) -> None:
         return super().run(DISCORD_TOKEN, *args, **kwargs)
