@@ -134,7 +134,7 @@ class DiscordClient(Client):
     
     async def on_guild_channel_create(self, channel: GuildChannel):
         if channel.category != self.category or type(channel) != VoiceChannel: return
-        await a_sleep(1)
+        await a_sleep(5)
         # 新增至資料庫
         dbo.new_channel(self.table_name, channel.id)
         # 檢查是否由機器人創建
@@ -155,7 +155,8 @@ class DiscordClient(Client):
         elif message.channel.category != self.category: return # 在動態語音類別外的訊息
         elif message.channel == self.initial_channel: return   # 在起始頻道的訊息
 
-        command = message.content.strip().lower()
+        command = message.content.strip().lower() # 修飾指令
+        table_name = self.table_name              # 資料庫表格名稱
         # 檢查是否為命令
         if not command.startswith(DISCORD_PREFIXS): return
         # 移除指令前墜
@@ -169,7 +170,11 @@ class DiscordClient(Client):
             command, args = _res[0], tuple(_res[1:])
         # 判斷指令
         if command == "help":
-            await Help.execute(message, args)
+            await Help.execute(table_name, message, args)
+        elif command == "name":
+            await Name.execute(table_name, message, args)
+        elif command == "limit":
+            await Limit.execute(table_name, message, args)
     
     def run(self, *args, **kwargs) -> None:
         return super().run(DISCORD_TOKEN, *args, **kwargs)
