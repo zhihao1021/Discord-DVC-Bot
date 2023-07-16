@@ -86,7 +86,7 @@ except:
 
             return: :class:`str`
             """
-            return json.dumps(data, sort_keys=False)
+            return json.dumps(data, sort_keys=False, indent=2)
 
         @staticmethod
         def loads(data: Union[bytes, bytearray, memoryview, str]) -> Any:
@@ -117,7 +117,7 @@ except:
 
             return: :class:`None`
             """
-            json.dump(data, open(file, mode="w"))
+            json.dump(data, open(file, mode="w"), indent=2)
 
         @staticmethod
         def load(file: str) -> Any:
